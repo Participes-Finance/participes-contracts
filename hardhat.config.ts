@@ -29,10 +29,10 @@ const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat : {
-      chainId: 43113,
+      chainId: 80001,
       forking: {
-        url: "https://api.avax.network/ext/bc/C/rpc",
-        blockNumber: 11105077, 
+        url: "https://rpc-mumbai.maticvigil.com",
+        // blockNumber: 11105077, 
       },
       live: false,
       saveDeployments: true,

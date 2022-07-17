@@ -4,7 +4,7 @@ const Utils = require("./utils");
 // const { send } = require("@openzeppelin/test-helpers");
 const BigNumber = require("bignumber.js");
 const { web3 } = require("@openzeppelin/test-helpers/src/setup");
-const { givenProvider } = require("web3");
+// const { givenProvider } = require("web3");
 
 const IERC20 = artifacts.require("contracts/interfaces/IERC20.sol:IERC20");
 const VePARTS = artifacts.require("vePARTS");
