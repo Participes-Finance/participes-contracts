@@ -13,21 +13,21 @@ const ERC20Mock = artifacts.require("ERC20Mock");
 
 describe("vePARTS token model test", function() {
   let accounts;
-  let underlying, wavax;
+  let underlying, wmatic;
 
-  let underlyingWhale = "0x773c2C197fb05034c2Aa523696D5caa6ACf149Ee";
-  let underlyingWhale1 = "0x211Ee0129A67e7D44514152eB43D9f31103Ac46B"; // both underlyings are avax whales
-  let partsWhale = "0x3829E0A5a6C50292ee65426313E60Eb4577240F1";
-  let mockStrategy = "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"; // stand-in for a strategy contract for Participes
+  let underlyingWhale = "0xC070A61D043189D99bbf4baA58226bf0991c7b11";
+  let underlyingWhale1 = "0x2C4B47668eA298EF4eF98956774Ea590E130ceFA"; // both underlyings are matic whales
+  let partsWhale = "0xD3E196bca844cBD5FD6229bcD9121330E2963b9D"; // also a matic whale (for tx gas fees)
+  let mockStrategy = "0x0dbA4d345B67892D80452d2AAA572d7fe7B140f4"; // stand-in for a strategy contract for Participes
   let stratToken; // mock reward token from a strategy
 
   let governance;
   let farmer1, farmer2;
 
-  let vePARTS, feeDistributor, avaxDistributor;
+  let vePARTS, feeDistributor, maticDistributor;
 
   async function deployContracts(){
-    underlying = await ERC20Mock.new("Partserd", "PARTS", BigNumber(1000*1E18), {from: partsWhale});
+    underlying = await ERC20Mock.new("Participes", "PARTS", BigNumber(1000*1E18), {from: partsWhale});
     underlying.transfer(underlyingWhale, BigNumber(20*1E18), {from: partsWhale});
     underlying.transfer(underlyingWhale1, BigNumber(10*1E18), {from: partsWhale});
     stratToken = await ERC20Mock.new("Mock Token", "MOCK", BigNumber(1000*1E18), {from: governance});
@@ -41,12 +41,12 @@ describe("vePARTS token model test", function() {
     vePARTS = await VePARTS.new(underlying.address, "vePARTS", "vePARTS", "vePARTS_1.0.0", {from: governance});
     const startTime = new Date();
     console.log('start time: ', startTime.getTime());
-    // avaxDistributor = await AvaxDistributor.new(vePARTS.address, Math.floor(startTime.getTime() / 1000), wavax.address, governance, governance, {from: governance});
-    // We set WAVAX as the token to be distributed by fee-distributer for test cases
+    // maticDistributor = await MaticDistributor.new(vePARTS.address, Math.floor(startTime.getTime() / 1000), wmatic.address, governance, governance, {from: governance});
+    // We set WMATIC as the token to be distributed by fee-distributer for test cases
     feeDistributor = await FeeDistributor.new(vePARTS.address, Math.floor(startTime.getTime() / 1000), [stratToken.address], governance, governance, {from: governance});
 
-    // await avaxDistributor.commit_admin(feeDistributor.address, {from: governance});
-    // await avaxDistributor.apply_admin({from: governance});
+    // await maticDistributor.commit_admin(feeDistributor.address, {from: governance});
+    // await maticDistributor.apply_admin({from: governance});
 
     console.log('voting escrow address: ', vePARTS.address);
     console.log('voting_escrow', await feeDistributor.voting_escrow());
@@ -74,8 +74,8 @@ describe("vePARTS token model test", function() {
   //   // underlying = await IERC20.at(partsAddress);
   //   // console.log("Fetching Underlying at: ", underlying.address);
 
-  //   stratToke = await IERC20.at(wavaxAddress);
-  //   console.log("Fetching Wrapped Avax at: ", wavax.address);
+  //   stratToke = await IERC20.at(wmaticAddress);
+  //   console.log("Fetching Wrapped Matic at: ", wmatic.address);
   // }
 
   async function setupBalance() {
@@ -121,20 +121,15 @@ describe("vePARTS token model test", function() {
     await vePARTS.create_lock(balance, unlock_time, {from: farmer});
   }
 
-  before(async function () {
+  beforeEach(async function () {
     accounts = await web3.eth.getAccounts();
     governance = accounts[0];
-
     farmer1 = accounts[1];
     farmer2 = accounts[2];
-
     await impersonates([underlyingWhale, underlyingWhale1, partsWhale, mockStrategy]);
+
     await deployContracts();
-
-    // await setupExternalContracts();
-
     await setupContracts(underlying, governance);
-
     await setupBalance();
   });
 
@@ -143,39 +138,44 @@ describe("vePARTS token model test", function() {
       let farmerOldBalance = new BigNumber(await underlying.balanceOf(farmer1));
       console.log('farmerOldBalance: ', farmerOldBalance.toString());
 
-      var myDate = "30-06-2022"; // [TODO]: make lock time not fixed
-      myDate = myDate.split("-");
-      var newDate = new Date( myDate[2], myDate[1] - 1, myDate[0]);
+      // var myDate = "30-06-2022"; // [TODO]: make lock time not fixed
+      // myDate = myDate.split("-");
+      // var newDate = new Date( myDate[2], myDate[1] - 1, myDate[0]);
+      newDate = new Date();
+      newDate.setFullYear(newDate.getFullYear() + 1);
       console.log("timestamp: ", newDate.getTime());
 
       await underlying.approve(vePARTS.address, farmerOldBalance, {from: farmer1});
 
-      await lockPARTS(farmer1, underlying, farmerOldBalance, newDate.getTime() / 1000);
+      await lockPARTS(farmer1, underlying, farmerOldBalance, Math.floor(newDate.getTime() / 1000));
 
-      let farmerShareBalance = new BigNumber(await vePARTS.balanceOf(farmer1)).toFixed();
-      console.log('farmerShareBalance: ', farmerShareBalance.toString());
+      let farmerShareBalance = new BigNumber(await vePARTS.balanceOf(farmer1)).toNumber();
+      console.log('farmerShareBalance: ', farmerShareBalance);
+      expect(farmerShareBalance).to.be.approximately(1e18, 0.2e18);
     })
   })
 
   describe("fee distributor test pass", function () {
     it("vePARTS holders earn fees from Strategy", async function () {
-      let farmerShareBalance = new BigNumber(await vePARTS.balanceOf(farmer1)).toFixed();
+      let farmerShareBalance = new BigNumber(await vePARTS.balanceOf(farmer1)).toNumber();
       console.log('farmerShareBalance: ', farmerShareBalance.toString());
 
       // lock parts for farmer2
       let farmerOldBalance2 = new BigNumber(await underlying.balanceOf(farmer2));
       console.log('farmerOldBalance2: ', farmerOldBalance2.toString());
 
-      var myDate = "30-06-2022";
-      myDate = myDate.split("-");
-      var newDate = new Date( myDate[2], myDate[1] - 1, myDate[0]);
+      // var myDate = "30-06-2022";
+      // myDate = myDate.split("-");
+      // var newDate = new Date( myDate[2], myDate[1] - 1, myDate[0]);
+      newDate = new Date();
+      newDate.setFullYear(newDate.getFullYear() + 1);
       console.log("timestamp: ", newDate.getTime());
 
       await underlying.approve(vePARTS.address, farmerOldBalance2, {from: farmer2});
 
-      await lockPARTS(farmer2, underlying, farmerOldBalance2, newDate.getTime() / 1000);
+      await lockPARTS(farmer2, underlying, farmerOldBalance2, Math.floor(newDate.getTime() / 1000));
 
-      let farmerShareBalance2 = new BigNumber(await vePARTS.balanceOf(farmer2)).toFixed();
+      let farmerShareBalance2 = new BigNumber(await vePARTS.balanceOf(farmer2)).toNumber();
       console.log('farmerShareBalance2: ', farmerShareBalance2.toString());
 
       // send fees to distributors

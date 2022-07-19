@@ -29,10 +29,10 @@ const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat : {
-      chainId: 80001,
+      chainId: 137,
       forking: {
-        url: "https://rpc-mumbai.maticvigil.com",
-        // blockNumber: 11105077, 
+        url: "https://polygon-rpc.com/",
+        blockNumber: 30807682, 
       },
       live: false,
       saveDeployments: true,
@@ -57,13 +57,26 @@ const config: HardhatUserConfig = {
   },
 
   solidity: {
-    version: "0.6.12",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 99999,
+    compilers: [
+      {
+        version: "0.6.12",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        }
       },
-    }
+      {
+        version: "0.8.11",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        }
+      },
+    ]
   },
 
   vyper: {
