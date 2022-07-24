@@ -1,28 +1,29 @@
 module.exports = async function ({ ethers, deployments, getNamedAccounts }) {
   const { deploy } = deployments
 
-  const { deployer, dev } = await getNamedAccounts()
+  const { deployer} = await getNamedAccounts()
 
   const parts = await ethers.getContract("PartsToken")
   
   const { address } = await deploy("MasterChef", {
     from: deployer,
-    args: [parts.address, dev, dev, "1000000000000000000000", "0"],
+    args: [parts.address, deployer, deployer, "1000000000000000000000", "0"],
     log: true,
     deterministicDeployment: false
   })
 
-  if (await parts.owner() !== address) {
+  const masterChef = await ethers.getContract("MasterChef");
+
+  if (await parts.owner() !== masterChef.address) {
     // Transfer Parts Ownership to Chef
     console.log("Transfer Parts Ownership to Chef")
-    await (await parts.transferOwnership(address)).wait()
+    await (await parts.transferOwnership(masterChef.address)).wait()
   }
 
-  const masterChef = await ethers.getContract("MasterChef")
-  if (await masterChef.owner() !== dev) {
-    // Transfer ownership of MasterChef to dev
-    console.log("Transfer ownership of MasterChef to dev")
-    await (await masterChef.transferOwnership(dev)).wait()
+  if (await masterChef.owner() !== deployer) {
+    // Transfer ownership of MasterChef to deployer
+    console.log("Transfer ownership of MasterChef to deployer")
+    await (await masterChef.transferOwnership(deployer)).wait()
   }
 }
 

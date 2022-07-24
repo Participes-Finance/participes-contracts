@@ -14,10 +14,10 @@ import "./interfaces/IMasterChef.sol";
 import "./interfaces/IStrategy.sol";
 
 
-interface IGaugeController{
-    function gauge_relative_weight(uint256 pid) external view returns(uint256);
-    function add_gauge(uint256 pid, int128 gauge_type, uint256 weight) external;
-}
+// interface IGaugeController{
+//     function gauge_relative_weight(uint256 pid) external view returns(uint256);
+//     function add_gauge(uint256 pid, int128 gauge_type, uint256 weight) external;
+// }
 
 /// @notice The (older) MasterChef contract gives out a constant number of PARTS tokens per block.
 /// It is the only address with minting rights for PARTS.
@@ -78,7 +78,7 @@ contract MasterChefV2 is OwnableUpgradeable {
     mapping(uint256 => address) public feeAddresses;
 
     address public treasury;
-    address public gaugeController; // Address of Gauge Controller contract
+    // address public gaugeController; // Address of Gauge Controller contract
 
     event Deposit(
         address indexed user,
@@ -121,25 +121,26 @@ contract MasterChefV2 is OwnableUpgradeable {
     event DepositToLiquidDepositor(uint256 amount, address token);
     event WithdrawFromLiquidDepositor(uint256 amount, address token);
 
-    modifier onlyController{
-        require(msg.sender == gaugeController, "Controller Only");
-        _;
+    // [TODO add gauge voting]
+    // modifier onlyController{
+    //     require(msg.sender == gaugeController, "Controller Only");
+    //     _;
 
-    }
+    // }
 
     constructor() public {}
 
     function initialize(
         IERC20 _parts,
         address _feeAddress,
-        address _treasury,
-        address _gaugeController
+        address _treasury
+        // address _gaugeController
     ) public initializer {
         __Ownable_init();
         PARTS = _parts;
         feeAddress = _feeAddress;
         treasury = _treasury;
-        gaugeController = _gaugeController;
+        // gaugeController = _gaugeController;
         ACC_PARTS_PRECISION = 1e18;
     }
 
@@ -177,13 +178,13 @@ contract MasterChefV2 is OwnableUpgradeable {
         treasury = _treasuryAddress;
     }
 
-    function setGaugeControllerAddress(address _gaugeControllerAddress) public {
-        require(
-            msg.sender == gaugeController || msg.sender == owner(),
-            "setGaugeControllerAddress: FORBIDDEN"
-        );
-        gaugeController = _gaugeControllerAddress;
-    }
+    // function setGaugeControllerAddress(address _gaugeControllerAddress) public {
+    //     require(
+    //         msg.sender == gaugeController || msg.sender == owner(),
+    //         "setGaugeControllerAddress: FORBIDDEN"
+    //     );
+    //     gaugeController = _gaugeControllerAddress;
+    // }
 
 
     /// @notice Deposits a dummy token to `MASTER_CHEF` MCV1. This is required because MCV1 holds the minting rights for PARTS.
@@ -232,8 +233,8 @@ contract MasterChefV2 is OwnableUpgradeable {
             })
         );
 
-        uint256 len = poolLength();
-        IGaugeController(gaugeController).add_gauge(len-1, 0, 0);
+        // uint256 len = poolLength();
+        // IGaugeController(gaugeController).add_gauge(len-1, 0, 0);
 
         emit LogPoolAddition(
             lpToken.length.sub(1),
@@ -283,14 +284,15 @@ contract MasterChefV2 is OwnableUpgradeable {
         );
     }
 
-    function updatePoolsFromGauges() public onlyOwner{
-        uint256 len = poolLength();
-        // uint256 time = block.timestamp;
-        for (uint256 _pid = 0; _pid < len; ++_pid) {
-            uint256 _allocPoint = IGaugeController(gaugeController).gauge_relative_weight(_pid);
-            set(_pid, _allocPoint, rewarder[_pid], strategies[_pid], poolInfo[_pid].depositFee, false);
-        }
-    }
+    // [TODO]: add gauge voting
+    // function updatePoolsFromGauges() public onlyOwner{
+    //     uint256 len = poolLength();
+    //     // uint256 time = block.timestamp;
+    //     for (uint256 _pid = 0; _pid < len; ++_pid) {
+    //         // uint256 _allocPoint = IGaugeController(gaugeController).gauge_relative_weight(_pid);
+    //         set(_pid, _allocPoint, rewarder[_pid], strategies[_pid], poolInfo[_pid].depositFee, false);
+    //     }
+    // }
 
     function _withdrawAllFromStrategy(uint256 _pid, IStrategy _strategy)
         internal

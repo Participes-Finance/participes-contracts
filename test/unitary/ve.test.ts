@@ -1,5 +1,7 @@
+import { EtherscanProvider } from "@ethersproject/providers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { advanceTimeAndBlock } from "../utilities";
 
 describe("ve", function () {
   let token;
@@ -7,27 +9,46 @@ describe("ve", function () {
   let ve;
   let owner;
   let ve_underlying_amount = ethers.BigNumber.from("1000000000000000000000");
+  let rewardToken;
+  let ve_dist, dist;
 
   beforeEach(async function () {
     [owner] = await ethers.getSigners();
+
     token = await ethers.getContractFactory("Token");
+    dist = await ethers.getContractFactory("contracts/governance/ve_dist.sol:ve_dist");
+
     ve_underlying = await token.deploy("VE", "VE", 18, owner.address);
     await ve_underlying.deployed();
+
     await ve_underlying.mint(owner.address, ve_underlying_amount);
     const vecontract = await ethers.getContractFactory("contracts/governance/ve.sol:ve");
-    ve = await vecontract.deploy(ve_underlying.address, ["0x0000000000000000000000000000000000000000"]); // use nulll address for now
+    ve = await vecontract.deploy(ve_underlying.address); 
     await ve.deployed();
+
+    rewardToken = await token.deploy("Reward", "RT", 18, owner.address);
+    await rewardToken.deployed();
+    ve_dist = await dist.deploy(ve.address, [rewardToken.address]);
+    await ve_dist.deployed();
   });
 
   it("create lock", async function () {
     await ve_underlying.approve(ve.address, ve_underlying_amount);
-    const lockDuration = 7 * 24 * 3600; // 1 week
+    await rewardToken.approve(ve_dist.address, ve_underlying_amount);
+    const lockDuration = 5 * 7 * 24 * 3600; // 1 week
 
     // Balance should be zero before and 1 after creating the lock
     expect(await ve.balanceOf(owner.address)).to.equal(0);
     await ve.create_lock(ve_underlying_amount, lockDuration);
     expect(await ve.ownerOf(1)).to.equal(owner.address);
     expect(await ve.balanceOf(owner.address)).to.equal(1);
+    console.log("user_point 1: ", await ve.user_point_history(1, 1));
+    console.log("claimable: ", await ve_dist.claimable(1));
+    await rewardToken.mint(ve_dist.address, 1000);
+    await advanceTimeAndBlock(2 * 7 * 24 * 3600);
+    await ve_dist.checkpoint_token();
+    await ve_dist.checkpoint_total_supply();
+    console.log("claimable: ", await ve_dist.claimable(1));
   });
 
   it("create lock outside allowed zones", async function () {

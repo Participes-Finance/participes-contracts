@@ -10,16 +10,11 @@ abstract contract StrategyGeneralMasterChefBase is StrategyBase {
     address public masterchef;
     address public rewardToken;
 
-    address public token0;
-    address public token1;
-
     uint256 public poolId;
 
     constructor(
         address _rewardToken,
         address _masterchef,
-        address _token0,
-        address _token1,
         uint256 _poolId,
         address _lp,
         address _depositor
@@ -31,8 +26,6 @@ abstract contract StrategyGeneralMasterChefBase is StrategyBase {
         )
     {
         poolId = _poolId;
-        token0 = _token0;
-        token1 = _token1;
         rewardToken = _rewardToken;
         masterchef = _masterchef;
     }

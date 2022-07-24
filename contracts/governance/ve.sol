@@ -149,7 +149,7 @@ interface IERC721 is IERC165 {
     * - `to` cannot be the zero address.
     * - `tokenId` token must exist and be owned by `from`.
     * - If the caller is not `from`, it must be have been allowed to move this token by either {approve} or {setApprovalForAll}.
-    * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe lockToken.
+    * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
     *
     * Emits a {Transfer} event.
     */
@@ -356,8 +356,7 @@ contract ve is IERC721, IERC721Metadata {
     int128 internal constant iMAXTIME = 4 * 365 * 86400;
     uint internal constant MULTIPLIER = 1 ether;
 
-    address public lockToken;
-    address[] public tokens;
+    address immutable public token;
     uint public supply;
     mapping(uint => LockedBalance) public locked;
 
@@ -424,15 +423,11 @@ contract ve is IERC721, IERC721Metadata {
     }
 
     /// @notice Contract constructor
-    /// @param _lock_token the token used to lock 
-    /// @param _token_addrs reward token addresses
+    /// @param token_addr `ERC20CRV` token address
     constructor(
-        address _lock_token,
-        address[] memory _token_addrs
+        address token_addr
     ) {
-
-        lockToken = _lock_token;
-        tokens = _token_addrs;
+        token = token_addr;
         voter = msg.sender;
         point_history[0].blk = block.number;
         point_history[0].ts = block.timestamp;
@@ -942,7 +937,7 @@ contract ve is IERC721, IERC721Metadata {
 
         address from = msg.sender;
         if (_value != 0 && deposit_type != DepositType.MERGE_TYPE) {
-            assert(IERC20(lockToken).transferFrom(from, address(this), _value));
+            assert(IERC20(token).transferFrom(from, address(this), _value));
         }
 
         emit Deposit(from, _tokenId, _value, _locked.end, deposit_type, block.timestamp);
@@ -1097,7 +1092,7 @@ contract ve is IERC721, IERC721Metadata {
         // Both can have >= 0 amount
         _checkpoint(_tokenId, _locked, LockedBalance(0,0));
 
-        assert(IERC20(lockToken).transfer(msg.sender, value));
+        assert(IERC20(token).transfer(msg.sender, value));
 
         // Burn the NFT
         _burn(_tokenId);

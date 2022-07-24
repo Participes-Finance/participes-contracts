@@ -12,3 +12,4 @@ coverage.json
 /cache/
 /bin/
 yarn-error.log
+.env
