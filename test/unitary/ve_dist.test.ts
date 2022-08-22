@@ -86,8 +86,8 @@ describe("ve", function () {
     let claimables = await ve_dist.connect(farmer1).claimable(1);
     console.log(claimables)
     await ve_dist.claim(1);
-    expect((await rewardToken1.balanceOf(farmer1.address))).to.greaterThan(0);
-    expect((await rewardToken2.balanceOf(farmer1.address))).to.greaterThan(0);
+    expect(parseInt((await rewardToken1.balanceOf(farmer1.address)).toString())).to.greaterThan(0);
+    expect(parseInt((await rewardToken2.balanceOf(farmer1.address)).toString())).to.greaterThan(0);
   });
 
 });

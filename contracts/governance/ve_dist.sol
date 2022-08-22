@@ -73,7 +73,7 @@ contract ve_dist {
     }
 
 
-    uint constant WEEK = 7 * 86400;
+    uint constant DAY = 1 days; // a day instead of a day 
 
     uint public start_time;
     uint public time_cursor;
@@ -82,8 +82,8 @@ contract ve_dist {
 
     // uint public last_token_time;
     uint[1000000000000000] public last_token_times;
-    // uint[1000000000000000][1000000000000000] public tokens_per_week; --> why tf u not use mappings eh?
-    mapping(uint => mapping(uint => uint)) public tokens_per_week;
+    // uint[1000000000000000][1000000000000000] public tokens_per_day; --> why tf u not use mappings eh?
+    mapping(uint => mapping(uint => uint)) public tokens_per_day;
 
     address public voting_escrow;
     // address public token;
@@ -96,7 +96,7 @@ contract ve_dist {
     address public depositor;
 
     constructor(address _voting_escrow, address[] memory _rewardTokens) {
-        uint _t = block.timestamp / WEEK * WEEK;
+        uint _t = block.timestamp / DAY * DAY;
         start_time = _t;
         time_cursor = _t;
 
@@ -129,7 +129,7 @@ contract ve_dist {
     }
 
     function timestamp() external view returns (uint) {
-        return block.timestamp / WEEK * WEEK;
+        return block.timestamp / DAY * DAY;
     }
 
     function _checkpoint_token(uint256 _index) internal {
@@ -140,27 +140,27 @@ contract ve_dist {
         uint t = last_token_times[_index];
         uint since_last = block.timestamp - t;
         last_token_times[_index] = block.timestamp;
-        uint this_week = t / WEEK * WEEK;
-        uint next_week = 0;
+        uint this_day = t / DAY * DAY;
+        uint next_day = 0;
 
         for (uint i = 0; i < 20; i++) {
-            next_week = this_week + WEEK;
-            if (block.timestamp < next_week) {
+            next_day = this_day + DAY;
+            if (block.timestamp < next_day) {
                 if (since_last == 0 && block.timestamp == t) {
-                    tokens_per_week[this_week][_index] += to_distribute;
+                    tokens_per_day[this_day][_index] += to_distribute;
                 } else {
-                    tokens_per_week[this_week][_index] += to_distribute * (block.timestamp - t) / since_last;
+                    tokens_per_day[this_day][_index] += to_distribute * (block.timestamp - t) / since_last;
                 }
                 break;
             } else {
-                if (since_last == 0 && next_week == t) {
-                    tokens_per_week[this_week][_index] += to_distribute;
+                if (since_last == 0 && next_day == t) {
+                    tokens_per_day[this_day][_index] += to_distribute;
                 } else {
-                    tokens_per_week[this_week][_index] += to_distribute * (next_week - t) / since_last;
+                    tokens_per_day[this_day][_index] += to_distribute * (next_day - t) / since_last;
                 }
             }
-            t = next_week;
-            this_week = next_week;
+            t = next_day;
+            this_day = next_day;
         }
         emit CheckpointToken(block.timestamp, to_distribute);
     }
@@ -215,7 +215,7 @@ contract ve_dist {
     function _checkpoint_total_supply() internal {
         address ve = voting_escrow;
         uint t = time_cursor;
-        uint rounded_timestamp = block.timestamp / WEEK * WEEK;
+        uint rounded_timestamp = block.timestamp / DAY * DAY;
         VotingEscrow(ve).checkpoint();
 
         for (uint i = 0; i < 20; i++) {
@@ -230,7 +230,7 @@ contract ve_dist {
                 }
                 ve_supply[t] = Math.max(uint(int256(pt.bias - pt.slope * dt)), 0);
             }
-            t += WEEK;
+            t += DAY;
         }
         time_cursor = t;
     }
@@ -254,8 +254,8 @@ contract ve_dist {
 
         if (max_user_epoch == 0) return to_distribute;
 
-        uint week_cursor = time_cursor_of[_tokenId];
-        if (week_cursor == 0) {
+        uint day_cursor = time_cursor_of[_tokenId];
+        if (day_cursor == 0) {
             user_epoch = _find_timestamp_user_epoch(ve, _tokenId, _start_time, max_user_epoch);
         } else {
             user_epoch = user_epoch_of[_tokenId];
@@ -265,17 +265,17 @@ contract ve_dist {
 
         VotingEscrow.Point memory user_point = VotingEscrow(ve).user_point_history(_tokenId, user_epoch);
 
-        if (week_cursor == 0) week_cursor = (user_point.ts + WEEK - 1) / WEEK * WEEK;
-        if (week_cursor >= _last_token_time) return to_distribute;
-        if (week_cursor < _start_time) week_cursor = _start_time;
+        if (day_cursor == 0) day_cursor = (user_point.ts + DAY - 1) / DAY * DAY;
+        if (day_cursor >= _last_token_time) return to_distribute;
+        if (day_cursor < _start_time) day_cursor = _start_time;
 
         VotingEscrow.Point memory old_user_point;
 
-        // max claim time is within 50 weeks (this is done to save gas when claiming rewards)!!!
+        // max claim time is within 50 days (this is done to save gas when claiming rewards)!!!
         for (uint i = 0; i < 50; i++) {
-            if (week_cursor >= _last_token_time) break;
+            if (day_cursor >= _last_token_time) break;
 
-            if (week_cursor >= user_point.ts && user_epoch <= max_user_epoch) {
+            if (day_cursor >= user_point.ts && user_epoch <= max_user_epoch) {
                 user_epoch += 1;
                 old_user_point = user_point;
                 if (user_epoch > max_user_epoch) {
@@ -284,21 +284,21 @@ contract ve_dist {
                     user_point = VotingEscrow(ve).user_point_history(_tokenId, user_epoch);
                 }
             } else {
-                int128 dt = int128(int256(week_cursor - old_user_point.ts));
+                int128 dt = int128(int256(day_cursor - old_user_point.ts));
                 uint balance_of = Math.max(uint(int256(old_user_point.bias - dt * old_user_point.slope)), 0);
                 if (balance_of == 0 && user_epoch > max_user_epoch) break;
                 if (balance_of > 0) {
                     for(uint j; j < tokens.length; j++){
-                        to_distribute[j] += balance_of * tokens_per_week[week_cursor][j] / ve_supply[week_cursor];
+                        to_distribute[j] += balance_of * tokens_per_day[day_cursor][j] / ve_supply[day_cursor];
                     }
                 }
-                week_cursor += WEEK;
+                day_cursor += DAY;
             }
         }
 
         user_epoch = Math.min(max_user_epoch, user_epoch - 1);
         user_epoch_of[_tokenId] = user_epoch;
-        time_cursor_of[_tokenId] = week_cursor;
+        time_cursor_of[_tokenId] = day_cursor;
 
         //gets the address of the owner of the NFT and sends him their rewards
         address addr = VotingEscrow(voting_escrow).ownerOf(_tokenId);
@@ -327,8 +327,8 @@ contract ve_dist {
 
         if (max_user_epoch == 0) return to_distribute;
 
-        uint week_cursor = time_cursor_of[_tokenId];
-        if (week_cursor == 0) {
+        uint day_cursor = time_cursor_of[_tokenId];
+        if (day_cursor == 0) {
             user_epoch = _find_timestamp_user_epoch(ve, _tokenId, _start_time, max_user_epoch);
         } else {
             user_epoch = user_epoch_of[_tokenId];
@@ -338,22 +338,22 @@ contract ve_dist {
 
         VotingEscrow.Point memory user_point = VotingEscrow(ve).user_point_history(_tokenId, user_epoch);
 
-        console.log("week_cursor:");
-        console.log(week_cursor);
+        console.log("day_cursor:");
+        console.log(day_cursor);
         console.log("_last_token_time:");
         console.log(_last_token_time);
 
-        if (week_cursor == 0) week_cursor = (user_point.ts + WEEK - 1) / WEEK * WEEK;
-        console.log("week_cursor after check:");
-        console.log(week_cursor);
-        // if (week_cursor >= last_token_time) return 0; // [TODO]: What do I do about this>
-        if (week_cursor >= _last_token_time) return to_distribute; //  temp fix (probs won't rlly work in our case :C )
-        if (week_cursor < _start_time) week_cursor = _start_time;
+        if (day_cursor == 0) day_cursor = (user_point.ts + DAY - 1) / DAY * DAY;
+        console.log("day_cursor after check:");
+        console.log(day_cursor);
+        // if (day_cursor >= last_token_time) return 0; // [TODO]: What do I do about this>
+        if (day_cursor >= _last_token_time) return to_distribute; //  temp fix (probs won't rlly work in our case :C )
+        if (day_cursor < _start_time) day_cursor = _start_time;
 
         VotingEscrow.Point memory old_user_point;
 
         for (uint i = 0; i < 50; i++) {
-            if (week_cursor >= _last_token_time) break;
+            if (day_cursor >= _last_token_time) break;
 
             console.log("--------------");
             console.log(i);
@@ -363,7 +363,7 @@ contract ve_dist {
             console.log(max_user_epoch);
             console.log("--------------");
 
-            if (week_cursor >= user_point.ts && user_epoch <= max_user_epoch) {
+            if (day_cursor >= user_point.ts && user_epoch <= max_user_epoch) {
                 user_epoch += 1;
                 old_user_point = user_point;
                 if (user_epoch > max_user_epoch) {
@@ -372,12 +372,12 @@ contract ve_dist {
                     user_point = VotingEscrow(ve).user_point_history(_tokenId, user_epoch);
                 }
             } else {
-                int128 dt = int128(int256(week_cursor - old_user_point.ts));
+                int128 dt = int128(int256(day_cursor - old_user_point.ts));
 
                 console.log("after dt:");
                 console.log(uint128(dt));
-                console.log("week_cursor:");
-                console.log(week_cursor);
+                console.log("day_cursor:");
+                console.log(day_cursor);
                 console.log("old_user_point.bias");
                 console.log(uint128(old_user_point.bias));
                 console.log("old_user_point.ts");
@@ -394,10 +394,10 @@ contract ve_dist {
                         console.log('token index: ');
                         console.log(j);
                         to_distribute[j].token = tokens[j];
-                        to_distribute[j].amount += balance_of * tokens_per_week[week_cursor][j] / ve_supply[week_cursor];
+                        to_distribute[j].amount += balance_of * tokens_per_day[day_cursor][j] / ve_supply[day_cursor];
                     }
                 }
-                week_cursor += WEEK;
+                day_cursor += DAY;
             }
         }
 
@@ -406,7 +406,7 @@ contract ve_dist {
 
     // returns claimable rewards 
     function claimable(uint _tokenId) external view returns (Claimable [] memory) {
-        // uint _last_token_time = last_token_time / WEEK * WEEK; // [TODO]: what do I do about this?
+        // uint _last_token_time = last_token_time / DAY * DAY; // [TODO]: what do I do about this?
         uint last_token_time = last_token_times[0];// temp fix
         // if(block.timestamp > last_token_time){ is this really needed here?
         //     for(uint i; i <= tokens.length; i++){
@@ -414,7 +414,7 @@ contract ve_dist {
         //     }
         // }
 
-        uint _last_token_time = last_token_time / WEEK * WEEK;
+        uint _last_token_time = last_token_time / DAY * DAY;
         Claimable[] memory claimables  = _claimable(_tokenId, voting_escrow, _last_token_time);
         return claimables;
     }
@@ -429,7 +429,7 @@ contract ve_dist {
         //     }
         // }
 
-        _last_token_time = _last_token_time / WEEK * WEEK;
+        _last_token_time = _last_token_time / DAY * DAY;
         uint[] memory amount = _claim(_tokenId, voting_escrow, _last_token_time);
         // if (amount != 0) {
         //     VotingEscrow(voting_escrow).deposit_for(_tokenId, amount);
@@ -440,10 +440,10 @@ contract ve_dist {
 
     function claim_many(uint[] memory _tokenIds) external returns (bool) {
         if (block.timestamp >= time_cursor) _checkpoint_total_supply();
-        // uint _last_token_time = last_token_time / WEEK * WEEK; // [TODO]: what do I do about this?
+        // uint _last_token_time = last_token_time / DAY * DAY; // [TODO]: what do I do about this?
         uint last_token_time = last_token_times[0];// temp fix
-        uint _last_token_time = last_token_time / WEEK * WEEK;
-        _last_token_time = _last_token_time / WEEK * WEEK;
+        uint _last_token_time = last_token_time / DAY * DAY;
+        _last_token_time = _last_token_time / DAY * DAY;
         address _voting_escrow = voting_escrow;
         uint[] memory totals  = new uint[](tokens.length);
 

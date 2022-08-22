@@ -1,7 +1,7 @@
 
 import { ethers } from "hardhat";
 import { expect } from "chai";
-import { advanceBlockTo, latest } from "../utilities"
+import { advanceBlockTo} from "../utilities"
 import { EtherscanProvider } from "@ethersproject/providers";
 import { start } from "repl";
 

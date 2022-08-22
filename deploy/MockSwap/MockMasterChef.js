@@ -25,5 +25,5 @@ module.exports = async function ({ ethers, deployments, getNamedAccounts }) {
 }
 
 module.exports.tags = ["MockMasterChef"]
-module.exports.dependencies = ["MockSushiToken", "ERC20Mock"]
+module.exports.dependencies = ["MockSushiToken", "FirstToken"]
 // module.exports.dependencies = ["UniswapV2Factory", "UniswapV2Router02", "PartsToken"]
